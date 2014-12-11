@@ -4,6 +4,7 @@ var app = express();
 var bcrypt = require('bcrypt');
 var db = require('./models');
 var session = require('express-session');
+var flash = require('connect-flash')
 
 app.set('view engine','ejs');
 
@@ -14,14 +15,18 @@ app.use(session({
     resave: false,
     saveUnitialized: true
 }))
-
+app.use(flash());
 app.use(function(req,res, next) {
     req.getUser = function() {
         return req.session.user || false;
     }
     next();
 })
-
+app.get('*', function(req, res, next) {
+    var alerts = req.flash();
+    res.locals.alerts = alerts;
+    next();
+})
 app.get('/',function(req,res){
     var user = req.getUser();
     res.render('index',{user:user});
@@ -31,7 +36,8 @@ app.get('/restricted',function(req,res){
     if(req.getUser()){
         res.render('restricted');
     } else {
-        res.send('ACCESS DENIED')
+        req.flash('danger', 'ACCESS DENIED');
+        res.redirect('/');
     }
 });
 
@@ -53,11 +59,13 @@ app.post('/auth/login',function(req,res){
                     }
                     res.redirect('/');
                 } else {
-                    res.send('not woot!');
+                    req.flash('danger', 'incorrect password');
+                    res.redirect('login');
                 }
             })
         }else{
-            res.send('unkown jerkwad');
+            req.flash('danger', 'User Unkown');
+            res.redirect('login');
         }
     });
     //user is logged in forward them to the home page
@@ -77,13 +85,22 @@ app.post('/auth/signup',function(req,res){
             defaults: {email: req.body.email, name: req.body.name, password: req.body.password}
         }).spread(function(user, created) {
         if (created == true) {
-            res.send({thing: 'User Created'});
+            req.flash('info', 'User Created')
+            res.redirect('/')
         } else {
-            res.send({thing:'User Exists'});
+            req.flash('info', 'User Already Exists');
+            res.redirect('signup');
         }
           
     }).catch(function(error) {
-        res.send(error);
+        if (error && Array.isArray(error.errors)) {
+            error.errors.forEach(function(errorItem) {
+                req.flash('danger', errorItem.message);
+            })
+        }else{
+            req.flash('danger', 'unkown error');
+        }
+        res.redirect('signup');
     })
     //user is signed up forward them to the home page
     // res.redirect('/');
@@ -93,6 +110,7 @@ app.post('/auth/signup',function(req,res){
 //sign up form
 app.get('/auth/logout',function(req,res){
     delete req.session.user;
+    req.flash('info', 'logged out');
     res.redirect('/');
 });
 

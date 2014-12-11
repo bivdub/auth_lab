@@ -9,5 +9,12 @@
 <body>
     <div class="container">
         <div class="row">
+        <% if(typeof alerts !== 'undefined'){ %>
+    		<% for(key in alerts){ %>
+        		<% alerts[key].forEach(function(thisMsg){ %>
+            		<div class="alert alert-<%= key %>"><%= thisMsg %></div>
+        		<% }); %>
+    		<% } %>
+		<% } %>
 
 
